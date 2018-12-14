@@ -6,10 +6,12 @@ import os
 import sys
 import json
 import re
+import platform
 
 from common.auto_adb import auto_adb
 
-adb = auto_adb()
+if platform.system() == 'Windows':
+    adb = auto_adb()
 
 
 def open_accordant_config():

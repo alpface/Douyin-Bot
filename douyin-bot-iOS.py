@@ -3,14 +3,13 @@ import sys
 import random
 import time
 from PIL import Image
-
+import wda
 
 if sys.version_info.major != 3:
     print('Please run under Python3')
     exit(1)
 try:
-    from common import debug, config, screenshot, UnicodeStreamFilter
-    from common.auto_adb import auto_adb
+    from common import   UnicodeStreamFilter
     from common import apiutil
     from common.compression import resize_image
 except Exception as ex:
@@ -23,15 +22,14 @@ VERSION = "0.0.1"
 
 # 我申请的 Key，随便用，嘻嘻嘻
 # 申请地址 http://ai.qq.com
-AppID = '1106858595'
-AppKey = 'bNUNgOpY6AeeJjFu'
+AppID = '2110553487'
+AppKey = 'sQayjEgeUcWscxt3'
 
 DEBUG_SWITCH = True
 FACE_PATH = 'face/'
 
-adb = auto_adb()
-adb.test_device()
-config = config.open_accordant_config()
+c = wda.Client()
+s = c.session()
 
 # 审美标准
 BEAUTY_THRESHOLD = 80
@@ -65,21 +63,54 @@ def _random_bias(num):
     print('num = ', num)
     return random.randint(-num, num)
 
+duration = 1.0
+def GetPageSize():
+    size = s.window_size()
+    x = size.width
+    y = size.height
+    return (x, y)
 
-def next_page():
-    """
-    翻到下一页
+def swipe_left():
+    size = GetPageSize()
+    sx = size[0] * 0.57
+    sy = size[1] * 0.75
+    ex = size[0] * 0.55
+    ey = 0
+    s.swipe(sx, sy, -ex, ey, duration)
+
+
+def swipe_right():
+    size = GetPageSize()
+    sx = size[0] * 0.43
+    sy = size[1] * 0.75
+    ex = size[0] * 0.54
+    ey = 0
+    s.swipe(sx, sy, ex, ey, duration)
+
+
+def swipe_up():
+    '''
+    start_x - 滑动开始x轴坐标
+    start_y - 滑动开始y轴坐标
+    end_x - 滑动结束x轴偏移量
+    end_y - 滑动结束y轴偏移量
     :return:
-    """
-    cmd = 'shell input swipe {x1} {y1} {x2} {y2} {duration}'.format(
-        x1=config['center_point']['x'],
-        y1=config['center_point']['y']+config['center_point']['ry'],
-        x2=config['center_point']['x'],
-        y2=config['center_point']['y'],
-        duration=200
-    )
-    adb.run(cmd)
-    time.sleep(1.5)
+    '''
+    size = GetPageSize()
+    start_x = size[0] * 0.43
+    start_y = size[1] * 0.75
+    end_x = 0
+    end_y = size[1] * 0.55
+    s.swipe(start_x, start_y, end_x, -end_y, duration)
+
+
+def swipe_down():
+    size = GetPageSize()
+    sx = size[0] * 0.35
+    sy = size[1] * 0.45
+    ex = 0
+    ey = size[1] * 0.55
+    s.swipe(sx, sy, ex, ey, duration)
 
 
 def follow_user():
@@ -87,12 +118,8 @@ def follow_user():
     关注用户
     :return:
     """
-    cmd = 'shell input tap {x} {y}'.format(
-        x=config['follow_bottom']['x'] + _random_bias(10),
-        y=config['follow_bottom']['y'] + _random_bias(10)
-    )
-    adb.run(cmd)
-    time.sleep(0.5)
+    # s.tap_hold(config['follow_bottom']['x'] + _random_bias(10), config['follow_bottom']['y'] + _random_bias(10), 0.01)
+    # time.sleep(0.5)
 
 
 def thumbs_up():
@@ -100,12 +127,25 @@ def thumbs_up():
     点赞
     :return:
     """
-    cmd = 'shell input tap {x} {y}'.format(
-        x=config['star_bottom']['x'] + _random_bias(10),
-        y=config['star_bottom']['y'] + _random_bias(10)
-    )
-    adb.run(cmd)
-    time.sleep(0.5)
+    # s.tap_hold(config['star_bottom']['x'] + _random_bias(10), config['star_bottom']['y'] + _random_bias(10), 0.01)
+    # size = GetPageSize()
+    # width = size[0]
+    # height = size[1]
+    # s.double_tap(width / 2, height / 2)
+    # time.sleep(0.5)
+
+
+def next_page():
+    """
+    翻到下一页
+    :return:
+    """
+    print(s.window_size())
+    # s.swipe_up()
+    swipe_up()
+    # s.swipe(config['center_point']['x'], config['center_point']['y']+config['center_point']['ry'],
+    #         config['center_point']['x'], config['center_point']['y'], 0.3)
+    # time.sleep(1.5)
 
 
 def main():
@@ -115,16 +155,15 @@ def main():
     """
     print('程序版本号：{}'.format(VERSION))
     print('激活窗口并按 CONTROL + C 组合键退出')
-    debug.dump_device_info()
-    screenshot.check_screenshot()
 
     while True:
+
         next_page()
 
         time.sleep(1)
-        screenshot.pull_screenshot()
-
-        resize_image('autojump.png', 'optimized.png', 1024*1024)
+        c.screenshot('snapshotting.png')
+        Image.open('snapshotting.png')
+        resize_image('snapshotting.png', 'optimized.png', 1024 * 1024)
 
         with open('optimized.png', 'rb') as bin_data:
             image_data = bin_data.read()
@@ -169,6 +208,6 @@ if __name__ == '__main__':
         # yes_or_no()
         main()
     except KeyboardInterrupt:
-        adb.run('kill-server')
+        s.close()
         print('谢谢使用')
         exit(0)
